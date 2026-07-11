@@ -63,7 +63,37 @@ send_request() {
     if ((${#forwarded[@]})); then
         printf '%s\0' "${forwarded[@]}"
     fi
-    cat
+    perl -MFcntl=F_GETFL,F_SETFL,O_NONBLOCK -e '
+        use strict;
+        use warnings;
+        use Errno qw(EAGAIN EINTR);
+        my $flags = fcntl(STDIN, F_GETFL, 0);
+        fcntl(STDIN, F_SETFL, $flags & ~O_NONBLOCK)
+            or die "cannot make stdin blocking: $!\n";
+        while (1) {
+            my $read = sysread(STDIN, my $buffer, 65536);
+            if (!defined $read) {
+                if ($! == EAGAIN || $! == EINTR) {
+                    select undef, undef, undef, 0.01;
+                    next;
+                }
+                die "cannot read stdin: $!\n";
+            }
+            last if $read == 0;
+            my $offset = 0;
+            while ($offset < $read) {
+                my $written = syswrite(STDOUT, $buffer, $read - $offset, $offset);
+                if (!defined $written) {
+                    if ($! == EAGAIN || $! == EINTR) {
+                        select undef, undef, undef, 0.01;
+                        next;
+                    }
+                    die "cannot write relay stream: $!\n";
+                }
+                $offset += $written;
+            }
+        }
+    '
 }
 
 send_request | "$SSH" -x -T "${outer_forwarding[@]}" \

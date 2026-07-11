@@ -26,6 +26,8 @@ done
 
 install -d -m 700 "$local_bin" "$config_dir"
 install -m 700 "$script_dir/bin/ssh-client-relay" "$local_bin/ssh-client-relay"
+install -m 700 "$script_dir/bin/ssh-client-relay-sshfs" \
+    "$local_bin/ssh-client-relay-sshfs"
 
 config_tmp="$config_dir/config.new.$$"
 trap 'rm -f "$config_tmp"' EXIT
@@ -44,6 +46,7 @@ ssh -x -T "$relay_host" \
     "chmod 700 ~/$remote_tmp && mv -f ~/$remote_tmp ~/$remote_helper"
 
 printf 'Installed local wrapper: %s/ssh-client-relay\n' "$local_bin"
+printf 'Installed SSHFS wrapper: %s/ssh-client-relay-sshfs\n' "$local_bin"
 printf 'Installed remote helper: %s:~/%s\n' "$relay_host" "$remote_helper"
 printf 'Dispatch route: %s -> %s -> %s\n' \
     "$target_alias" "$relay_host" "$target_host"

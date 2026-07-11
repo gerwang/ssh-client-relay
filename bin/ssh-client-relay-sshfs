@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+relay_bin="${SSH_CLIENT_RELAY_BIN:-$HOME/.local/bin/ssh-client-relay}"
+
+if ! command -v sshfs >/dev/null; then
+    printf 'ssh-client-relay-sshfs: sshfs is required\n' >&2
+    exit 69
+fi
+if [[ ! -x "$relay_bin" ]]; then
+    printf 'ssh-client-relay-sshfs: relay executable not found: %s\n' \
+        "$relay_bin" >&2
+    exit 69
+fi
+
+exec sshfs -o "ssh_command=$relay_bin" "$@"

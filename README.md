@@ -41,7 +41,7 @@ Measured performance and methodology are documented in [BENCHMARKS.md](BENCHMARK
 - Bash and OpenSSH on the relay
 - A working, preferably non-interactive SSH login from client to relay
 - A working SSH configuration or route from relay to the final server
-- On a Linux client: Bash, OpenSSH `ssh` and `scp`, and `install`
+- On a Linux client: Bash, Perl, OpenSSH `ssh` and `scp`, and `install`
 - On a Windows client: Windows PowerShell 5.1 or later and Windows OpenSSH
 
 The relay must run Linux because the helper uses Bash and the intended
@@ -343,3 +343,52 @@ In the Windows VS Code user `settings.json`, set:
 
 Reload VS Code and select `compute` from `Remote-SSH: Connect to Host`. The path
 must point to the `.exe`, not the PowerShell installer or C# source file.
+
+## SSHFS
+
+The Linux installer also provides `~/.local/bin/ssh-client-relay-sshfs`. It
+runs SSHFS with `ssh-client-relay` as the SSH transport, so the SFTP process is
+created on the Linux relay and can reuse the relay's target ControlMaster.
+
+```text
+client FUSE mount -> relayed SSH stream -> relay ControlMaster -> target SFTP
+```
+
+After installing and verifying the normal relay connection, mount a remote
+directory with:
+
+```bash
+mkdir -p ~/remote-mount
+ssh-client-relay-sshfs \
+    -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
+    compute.example.org:/remote/path ~/remote-mount
+```
+
+Run it in the foreground when a service manager owns the process:
+
+```bash
+ssh-client-relay-sshfs -f \
+    -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 \
+    compute.example.org:/remote/path ~/remote-mount
+```
+
+Unmount with the platform's normal FUSE command:
+
+```bash
+fusermount3 -u ~/remote-mount
+```
+
+The helper accepts normal SSHFS arguments and adds only the `ssh_command`
+option. Set `SSH_CLIENT_RELAY_BIN` to override the installed relay executable.
+The target alias or hostname must match the target configured by `install.sh`.
+
+Before mounting, test a real target session rather than only checking the
+ControlMaster process:
+
+```bash
+ssh-client-relay compute.example.org true
+```
+
+Each active SSHFS mount consumes a target SFTP subsystem session on the relay's
+ControlMaster. A mount fails if the relay master is absent, saturated, or no
+longer accepts new channels.
