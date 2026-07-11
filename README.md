@@ -392,3 +392,7 @@ ssh-client-relay compute.example.org true
 Each active SSHFS mount consumes a target SFTP subsystem session on the relay's
 ControlMaster. A mount fails if the relay master is absent, saturated, or no
 longer accepts new channels.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
