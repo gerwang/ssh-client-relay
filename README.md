@@ -36,6 +36,10 @@ requirement.
 
 Measured performance and methodology are documented in [BENCHMARKS.md](BENCHMARKS.md).
 
+Before deployment, review the [security model](docs/SECURITY_MODEL.md) and
+[known limitations](docs/LIMITATIONS.md). The relay is a fully trusted machine,
+not an end-to-end opaque transport.
+
 ## Requirements
 
 - Bash and OpenSSH on the relay
@@ -396,3 +400,29 @@ longer accepts new channels.
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+## Development
+
+Run the local Linux tests with:
+
+```bash
+tests/test-linux.sh
+```
+
+Run the Windows tests from PowerShell with:
+
+```powershell
+tests\test-windows.ps1
+```
+
+GitHub Actions runs both suites on every push and pull request. The tests use
+fake local SSH transports and require no credentials or network hosts.
+
+Show the installed client version with:
+
+```bash
+ssh-client-relay --version
+```
+
+See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md) for release and
+vulnerability-reporting information.

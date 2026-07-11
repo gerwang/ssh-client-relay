@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 internal static class SshClientRelay
 {
     private const string Protocol = "SSH_CLIENT_RELAY_ARGS_V1";
+    private const string Version = "0.1.0";
 
     private sealed class Config
     {
@@ -25,6 +26,11 @@ internal static class SshClientRelay
     {
         try
         {
+            if (args.Length == 1 && args[0] == "--version")
+            {
+                Console.WriteLine("ssh-client-relay " + Version);
+                return 0;
+            }
             Config config = LoadConfig();
             bool useRelay = false;
             string[] forwarded = new string[args.Length];
