@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 internal static class SshClientRelay
@@ -106,12 +107,11 @@ internal static class SshClientRelay
             process.Start();
 
             Stream childInput = process.StandardInput.BaseStream;
-            Task input = Console.OpenStandardInput().CopyToAsync(childInput)
-                .ContinueWith(delegate { try { childInput.Close(); } catch { } });
-            Task output = process.StandardOutput.BaseStream.CopyToAsync(
-                Console.OpenStandardOutput());
-            Task error = process.StandardError.BaseStream.CopyToAsync(
-                Console.OpenStandardError());
+            Task input = StartPump(Console.OpenStandardInput(), childInput, true);
+            Task output = StartPump(process.StandardOutput.BaseStream,
+                Console.OpenStandardOutput(), false);
+            Task error = StartPump(process.StandardError.BaseStream,
+                Console.OpenStandardError(), false);
 
             process.WaitForExit();
             Task.WaitAll(output, error);
@@ -144,12 +144,11 @@ internal static class SshClientRelay
             Stream childInput = process.StandardInput.BaseStream;
             WriteFrame(childInput, args);
 
-            Task input = Console.OpenStandardInput().CopyToAsync(childInput)
-                .ContinueWith(delegate { try { childInput.Close(); } catch { } });
-            Task output = process.StandardOutput.BaseStream.CopyToAsync(
-                Console.OpenStandardOutput());
-            Task error = process.StandardError.BaseStream.CopyToAsync(
-                Console.OpenStandardError());
+            Task input = StartPump(Console.OpenStandardInput(), childInput, true);
+            Task output = StartPump(process.StandardOutput.BaseStream,
+                Console.OpenStandardOutput(), false);
+            Task error = StartPump(process.StandardError.BaseStream,
+                Console.OpenStandardError(), false);
 
             process.WaitForExit();
             Task.WaitAll(output, error);
@@ -201,6 +200,34 @@ internal static class SshClientRelay
             WriteField(stream, arg);
         }
         stream.Flush();
+    }
+
+    private static Task StartPump(
+        Stream source, Stream destination, bool closeDestination)
+    {
+        return Task.Factory.StartNew(delegate
+        {
+            try
+            {
+                byte[] buffer = new byte[4096];
+                int read;
+                while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    destination.Write(buffer, 0, read);
+                    destination.Flush();
+                }
+            }
+            catch (IOException)
+            {
+                // The SSH process may close stdin before its caller does.
+            }
+            finally
+            {
+                if (closeDestination)
+                    try { destination.Close(); } catch { }
+            }
+        }, CancellationToken.None, TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
     }
 
     private static void WriteField(Stream stream, string value)
