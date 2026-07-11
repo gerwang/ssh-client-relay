@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+
+- Transactional Windows upgrades with staged validation, lock waiting, atomic
+  replacement, locking-process diagnostics, and preservation on timeout
+
 ## 0.1.0 - 2026-07-11
 
 ### Added

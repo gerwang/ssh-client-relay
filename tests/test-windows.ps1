@@ -56,6 +56,32 @@ SSH=$FakeSsh
     $Args = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($env:TEST_ARGS)).TrimEnd("`0").Split("`0")
     if ($Args -notcontains "1081:127.0.0.1:1081") { throw "attached -D was not bridged" }
 
+    . (Join-Path $Repo "windows\InstallExecutable.ps1")
+    $Installed = Join-Path $Work "installed.exe"
+    $Staged = Join-Path $Work "staged.exe"
+    [IO.File]::WriteAllText($Installed, "old")
+    [IO.File]::WriteAllText($Staged, "new")
+    $Lock = [IO.File]::Open($Installed, [IO.FileMode]::Open,
+        [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $FailedForLock = $false
+        try {
+            Install-RelayExecutable -StagedPath $Staged `
+                -DestinationPath $Installed -WaitForExitSeconds 0
+        }
+        catch [IO.IOException] {
+            $FailedForLock = $true
+        }
+        if (-not $FailedForLock) { throw "locked replacement unexpectedly succeeded" }
+        if ([IO.File]::ReadAllText($Staged) -ne "new") { throw "staged file was not preserved" }
+    }
+    finally {
+        $Lock.Dispose()
+    }
+    Install-RelayExecutable -StagedPath $Staged `
+        -DestinationPath $Installed -WaitForExitSeconds 0
+    if ([IO.File]::ReadAllText($Installed) -ne "new") { throw "atomic replacement failed" }
+
     Write-Host "Windows tests passed"
 }
 finally {

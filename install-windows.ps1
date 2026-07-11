@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory = $true, Position = 2)] [string] $TargetHost,
     [string] $InstallDirectory = "$env:USERPROFILE\bin",
     [string] $ConfigDirectory = "$env:USERPROFILE\.config\ssh-client-relay",
-    [string] $RemoteHelper = ".local/bin/ssh-client-relay-helper"
+    [string] $RemoteHelper = ".local/bin/ssh-client-relay-helper",
+    [ValidateRange(0, 3600)] [int] $WaitForExitSeconds = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,18 +13,24 @@ $RepoDirectory = $PSScriptRoot
 $Ssh = (Get-Command ssh.exe -ErrorAction Stop).Source
 $Scp = (Get-Command scp.exe -ErrorAction Stop).Source
 $Executable = Join-Path $InstallDirectory "ssh-client-relay.exe"
+$StagedExecutable = Join-Path $InstallDirectory "ssh-client-relay.new.$PID.exe"
 $ConfigFile = Join-Path $ConfigDirectory "config.windows"
 $RemoteTemporary = "$RemoteHelper.new.$PID.$([Guid]::NewGuid().ToString('N'))"
 
 New-Item -ItemType Directory -Force -Path $InstallDirectory, $ConfigDirectory |
     Out-Null
 
-if (Test-Path -LiteralPath $Executable) {
-    Remove-Item -LiteralPath $Executable -Force
+Add-Type -Path (Join-Path $RepoDirectory "windows\SshClientRelay.cs") `
+    -OutputAssembly $StagedExecutable -OutputType ConsoleApplication
+
+$VersionOutput = & $StagedExecutable --version
+if ($LASTEXITCODE -ne 0 -or $VersionOutput -notmatch '^ssh-client-relay [0-9]+\.[0-9]+\.[0-9]+$') {
+    throw "The staged Windows executable failed validation: $VersionOutput"
 }
 
-Add-Type -Path (Join-Path $RepoDirectory "windows\SshClientRelay.cs") `
-    -OutputAssembly $Executable -OutputType ConsoleApplication
+. (Join-Path $RepoDirectory "windows\InstallExecutable.ps1")
+Install-RelayExecutable -StagedPath $StagedExecutable `
+    -DestinationPath $Executable -WaitForExitSeconds $WaitForExitSeconds
 
 $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $Configuration = @(

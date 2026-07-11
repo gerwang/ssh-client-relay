@@ -43,8 +43,11 @@ stdin correctly.
 
 ## Installation And Upgrades
 
-The Windows installer cannot replace `ssh-client-relay.exe` while VS Code or
-another process has it open. Close relay users before upgrading.
+The Windows installer stages and validates a new executable, then waits up to 30
+seconds by default for the installed executable to become replaceable. It does
+not terminate VS Code or active SSH sessions. If the timeout expires, the
+working executable remains untouched and the validated staged update is kept
+for diagnosis or a later retry. Use `-WaitForExitSeconds` to change the wait.
 
 Installers overwrite generated configuration and installed binaries. They do
 not provide package-manager integration, rollback, or automatic migration.
