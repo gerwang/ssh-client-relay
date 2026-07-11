@@ -122,10 +122,15 @@ internal static class SshClientRelay
 
     private static int RunRelayed(Config config, string[] args)
     {
-        string[] outerArgs = { "-x", "-T", config.RelayHost, config.RemoteHelper };
+        List<string> outerArgs = new List<string>();
+        outerArgs.Add("-x");
+        outerArgs.Add("-T");
+        AddDynamicForwardBridges(args, outerArgs);
+        outerArgs.Add(config.RelayHost);
+        outerArgs.Add(config.RemoteHelper);
         using (Process process = new Process())
         {
-            process.StartInfo = NewStartInfo(config.Ssh, outerArgs, true);
+            process.StartInfo = NewStartInfo(config.Ssh, outerArgs.ToArray(), true);
             process.Start();
 
             ConsoleCancelEventHandler cancel = delegate(object sender,
@@ -151,6 +156,36 @@ internal static class SshClientRelay
             Console.CancelKeyPress -= cancel;
             GC.KeepAlive(input);
             return process.ExitCode;
+        }
+    }
+
+    private static void AddDynamicForwardBridges(
+        string[] innerArgs, List<string> outerArgs)
+    {
+        for (int i = 0; i < innerArgs.Length; i++)
+        {
+            string spec = null;
+            if (innerArgs[i] == "-D" && i + 1 < innerArgs.Length)
+            {
+                spec = innerArgs[++i];
+            }
+            else if (innerArgs[i].StartsWith("-D") && innerArgs[i].Length > 2)
+            {
+                spec = innerArgs[i].Substring(2);
+            }
+
+            if (spec == null)
+                continue;
+            int separator = spec.LastIndexOf(':');
+            string port = separator >= 0 ? spec.Substring(separator + 1) : spec;
+            int parsedPort;
+            if (!Int32.TryParse(port, out parsedPort) ||
+                parsedPort < 1 || parsedPort > 65535)
+                throw new InvalidDataException(
+                    "unsupported dynamic-forward spec: " + spec);
+
+            outerArgs.Add("-L");
+            outerArgs.Add(spec + ":127.0.0.1:" + port);
         }
     }
 

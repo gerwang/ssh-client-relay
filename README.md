@@ -21,6 +21,11 @@ argument array without evaluating it as shell source, then executes the relay's
 `/usr/bin/ssh`. After the argument frame, the same channel transports the inner
 SSH process's stdin and stdout.
 
+Dynamic forwarding needs one additional bridge. An inner `-D PORT` listener is
+created on the relay, while applications such as VS Code expect it on the
+client. The wrapper therefore adds an outer `-L PORT:127.0.0.1:PORT` forward so
+the client-local port reaches the relay-local SOCKS listener.
+
 This requires two independent connections:
 
 1. The client must be able to SSH to the relay.

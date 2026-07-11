@@ -15,6 +15,7 @@ fi
 
 use_relay=false
 forwarded=()
+outer_forwarding=()
 
 for arg in "$@"; do
     case "$arg" in
@@ -36,6 +37,27 @@ if ! "$use_relay"; then
     exec "$SSH" "$@"
 fi
 
+# A relayed -D listener lives on the relay. Bridge it back to the client so
+# callers such as VS Code can reach the SOCKS port at their expected localhost.
+for ((i = 0; i < ${#forwarded[@]}; i++)); do
+    dynamic_spec=
+    if [[ "${forwarded[i]}" == -D && $((i + 1)) -lt ${#forwarded[@]} ]]; then
+        dynamic_spec="${forwarded[i + 1]}"
+        ((i++))
+    elif [[ "${forwarded[i]}" == -D?* ]]; then
+        dynamic_spec="${forwarded[i]#-D}"
+    fi
+    if [[ -n "$dynamic_spec" ]]; then
+        dynamic_port="${dynamic_spec##*:}"
+        [[ "$dynamic_port" =~ ^[0-9]+$ ]] || {
+            printf 'ssh-client-relay: unsupported dynamic-forward spec: %s\n' \
+                "$dynamic_spec" >&2
+            exit 64
+        }
+        outer_forwarding+=(-L "${dynamic_spec}:127.0.0.1:${dynamic_port}")
+    fi
+done
+
 send_request() {
     printf 'SSH_CLIENT_RELAY_ARGS_V1\0%d\0' "${#forwarded[@]}"
     if ((${#forwarded[@]})); then
@@ -44,4 +66,5 @@ send_request() {
     cat
 }
 
-send_request | "$SSH" -x -T "$RELAY_HOST" "$REMOTE_HELPER"
+send_request | "$SSH" -x -T "${outer_forwarding[@]}" \
+    "$RELAY_HOST" "$REMOTE_HELPER"
