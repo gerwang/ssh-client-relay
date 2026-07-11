@@ -34,6 +34,8 @@ This requires two independent connections:
 The second connection may reuse a relay-owned ControlMaster, but that is not a
 requirement.
 
+Measured performance and methodology are documented in [BENCHMARKS.md](BENCHMARKS.md).
+
 ## Requirements
 
 - Bash and OpenSSH on the relay
