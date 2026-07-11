@@ -2,6 +2,8 @@
 set -euo pipefail
 
 IFS= read -r -d '' magic || exit 64
+# .NET Framework may prefix redirected UTF-8 standard input with a BOM.
+magic="${magic#$'\xEF\xBB\xBF'}"
 [[ "$magic" == SSH_CLIENT_RELAY_ARGS_V1 ]] || exit 64
 
 IFS= read -r -d '' count || exit 64
