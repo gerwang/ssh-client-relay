@@ -31,7 +31,7 @@ export HOME="$work/home"
 export TEST_ARGS="$work/args"
 export TEST_STDIN="$work/stdin"
 
-assert_file 'ssh-client-relay 0.1.1' <("$repo/bin/ssh-client-relay" --version)
+assert_file 'ssh-client-relay 0.1.2' <("$repo/bin/ssh-client-relay" --version)
 
 output="$(printf payload | "$repo/bin/ssh-client-relay" other 'arg with space')"
 [[ "$output" == fake-ssh-output ]] || fail 'direct output was not relayed'

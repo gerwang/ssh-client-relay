@@ -114,6 +114,16 @@ It installs the client executable at:
 No WSL, Visual Studio, separate .NET SDK, Python, or third-party package is
 required. The Windows client uses `ssh.exe` and `scp.exe` from Windows OpenSSH.
 
+During an upgrade, the installer validates a staged executable and waits up to
+30 seconds for active relay processes to exit before replacing the installed
+file atomically. It never kills VS Code or removes the working executable on a
+failed upgrade. Close active remote windows before upgrading, or adjust the wait:
+
+```powershell
+.\install-windows.ps1 ssh-relay compute compute.example.org `
+    -WaitForExitSeconds 120
+```
+
 ## Verify
 
 Using the example configuration:

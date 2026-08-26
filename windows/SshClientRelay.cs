@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 internal static class SshClientRelay
 {
     private const string Protocol = "SSH_CLIENT_RELAY_ARGS_V1";
-    private const string Version = "0.1.1";
+    private const string Version = "0.1.2";
 
     private sealed class Config
     {
