@@ -76,6 +76,7 @@ SSH=$FakeSsh
     $ErrorActionPreference = $PreviousErrorActionPreference
     if ($UnsafeClientExit -ne 70) { throw "unsafe configured helper path was accepted" }
     if ($UnsafeInstallerExit -eq 0) { throw "unsafe installer helper path was accepted" }
+    $global:LASTEXITCODE = 0
 
     Write-Host "Windows tests passed"
 }
