@@ -54,6 +54,13 @@ the client user. Do not use configuration files from untrusted sources.
 The Windows configuration is parsed as `KEY=value` records and does not execute
 code. Protect it from modification by other users.
 
+`REMOTE_HELPER` ultimately becomes the fixed remote command of the outer SSH
+connection. Both clients validate it at runtime, and both installers accept
+only a path beneath the relay home containing ASCII letters, digits, `.`, `_`,
+`-`, and `/`, with no empty, `.` or `..` components. This prevents an edited
+configuration or installer argument from turning the helper path into an
+additional remote shell command.
+
 ## SSHFS
 
 Relayed SSHFS gives the relay the same visibility and authority as the target

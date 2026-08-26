@@ -15,6 +15,27 @@ $Executable = Join-Path $InstallDirectory "ssh-client-relay.exe"
 $ConfigFile = Join-Path $ConfigDirectory "config.windows"
 $RemoteTemporary = "$RemoteHelper.new.$PID.$([Guid]::NewGuid().ToString('N'))"
 
+function Test-SafeRemotePath([string] $Path) {
+    if ([string]::IsNullOrEmpty($Path) -or $Path.StartsWith("/") -or
+        $Path.EndsWith("/") -or $Path.Contains("//") -or
+        $Path -notmatch '^[A-Za-z0-9._/-]+$') {
+        return $false
+    }
+    foreach ($Part in $Path.Split('/')) {
+        if ($Part -eq "" -or $Part -eq "." -or $Part -eq "..") {
+            return $false
+        }
+    }
+    return $true
+}
+
+if (-not (Test-SafeRemotePath $RemoteHelper)) {
+    throw "RemoteHelper must be a safe path relative to the relay home: $RemoteHelper"
+}
+
+$RemoteDirectory = Split-Path -Parent $RemoteHelper
+if ([string]::IsNullOrEmpty($RemoteDirectory)) { $RemoteDirectory = "." }
+
 New-Item -ItemType Directory -Force -Path $InstallDirectory, $ConfigDirectory |
     Out-Null
 
@@ -35,7 +56,8 @@ $Configuration = @(
 ) -join "`n"
 [IO.File]::WriteAllText($ConfigFile, "$Configuration`n", $Utf8NoBom)
 
-& $Ssh -x -T $RelayHost "mkdir -p ~/.local/bin && chmod 700 ~/.local/bin"
+& $Ssh -x -T $RelayHost `
+    "mkdir -p ~/$RemoteDirectory && chmod 700 ~/$RemoteDirectory"
 if ($LASTEXITCODE -ne 0) { throw "Could not prepare the relay directory" }
 
 & $Scp -q (Join-Path $RepoDirectory "libexec\ssh-client-relay-helper") `

@@ -83,6 +83,10 @@ The installer creates:
 - `~/.local/bin/ssh-client-relay-helper` on the relay
 
 `RELAY_HOST` must resolve through DNS or the client's SSH configuration.
+If `REMOTE_HELPER` is overridden, it must be a simple path relative to the
+relay user's home directory, such as `.local/bin/ssh-client-relay-helper`.
+Absolute paths, traversal components, whitespace, and shell metacharacters are
+rejected.
 
 ## Install on Windows
 
@@ -247,12 +251,26 @@ and ensures that either the alias or canonical hostname triggers dispatch.
 In the Linux VS Code user `settings.json`, set the absolute path:
 
 ```json
-"remote.SSH.path": "/home/your-user/.local/bin/ssh-client-relay"
+"remote.SSH.path": "/home/your-user/.local/bin/ssh-client-relay",
+"remote.SSH.useExecServer": true
 ```
 
 Although `remote.SSH.path` is global, the wrapper relays only the configured
 target alias or canonical hostname. Other hosts continue through
 `/usr/bin/ssh` on the client.
+
+If VS Code Settings Sync is shared with a Windows client, keep the executable
+path local to each platform:
+
+```json
+"settingsSync.ignoredSettings": [
+    "remote.SSH.path"
+]
+```
+
+Merge `remote.SSH.path` into an existing `settingsSync.ignoredSettings` array
+rather than creating a second array. The `remote.SSH.useExecServer` value can
+be synced because `true` is appropriate on both platforms.
 
 Reload VS Code, run `Remote-SSH: Connect to Host`, and select the configured
 target alias. If connection fails, inspect `View: Output` and select
@@ -342,11 +360,50 @@ connection settings and credentials still come from the Linux relay.
 In the Windows VS Code user `settings.json`, set:
 
 ```json
-"remote.SSH.path": "C:\\Users\\your-user\\bin\\ssh-client-relay.exe"
+"remote.SSH.path": "C:\\Users\\your-user\\bin\\ssh-client-relay.exe",
+"remote.SSH.useExecServer": true
 ```
 
 Reload VS Code and select `compute` from `Remote-SSH: Connect to Host`. The path
 must point to the `.exe`, not the PowerShell installer or C# source file.
+
+When the same Settings Sync account is used on Linux and Windows, also add
+`remote.SSH.path` to `settingsSync.ignoredSettings` as shown in the Linux
+section. Otherwise one platform can overwrite the other platform's executable
+path. On failure, Remote SSH may silently fall back to ordinary `ssh`, which
+causes the target to authenticate directly instead of using the relay.
+
+## Troubleshooting VS Code
+
+Start by testing each layer outside VS Code:
+
+```bash
+/usr/bin/ssh -o BatchMode=yes ssh-relay true
+ssh ssh-relay 'ssh -O check compute'
+~/.local/bin/ssh-client-relay -O check compute
+~/.local/bin/ssh-client-relay compute true
+```
+
+For a Windows client, run the equivalent checks in PowerShell with `ssh.exe`
+and `%USERPROFILE%\bin\ssh-client-relay.exe`.
+
+Common failure signatures:
+
+- A password or MFA prompt for the relay account means the outer
+  client-to-relay connection is not non-interactive.
+- A password or MFA prompt for the target means the relay-to-target
+  ControlMaster is absent, expired, or unable to open another channel.
+- A log saying the configured SSH path is not a valid binary, followed by a
+  plain `ssh` command, means `remote.SSH.path` is wrong for the client OS.
+- Repeated `Installation already in progress`, followed by
+  `ExhaustedRetries`, can come from the legacy VS Code bootstrap colliding with
+  a legitimately running server. Keep `remote.SSH.useExecServer` set to
+  `true`. Do not delete a remote lock until confirming no live VS Code server
+  owns it.
+
+The relay's own version is printed with `--version`. VS Code probes SSH
+runtimes with `-V`; the wrapper intentionally passes that non-target invocation
+to the underlying OpenSSH client, so seeing an OpenSSH version there is normal.
 
 ## SSHFS
 
@@ -425,4 +482,5 @@ ssh-client-relay --version
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md) for release and
-vulnerability-reporting information.
+vulnerability-reporting information. Contributions are described in
+[CONTRIBUTING.md](CONTRIBUTING.md).

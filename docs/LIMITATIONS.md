@@ -49,6 +49,10 @@ another process has it open. Close relay users before upgrading.
 Installers overwrite generated configuration and installed binaries. They do
 not provide package-manager integration, rollback, or automatic migration.
 
+Custom helper locations are limited to simple paths relative to the relay
+user's home directory. Paths containing whitespace, shell metacharacters,
+traversal components, or absolute paths are intentionally unsupported.
+
 The client and helper use a fixed protocol marker but do not negotiate versions.
 Upgrade both sides together.
 
@@ -76,3 +80,5 @@ fake local transports.
 
 CI does not test a live SSH server, MFA, ControlMaster behavior, real port
 forwarding, SSHFS/FUSE mounts, network interruption, or relay reboot recovery.
+The maintainers additionally exercise Linux and Windows clients against a live
+Linux relay, but those private deployment checks are not reproducible in CI.

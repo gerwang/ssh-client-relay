@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible problem using redacted, non-production details
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include private keys, passwords, MFA data, session contents, or production identities. Use GitHub private vulnerability reporting for suspected security issues.
+  - type: input
+    id: version
+    attributes:
+      label: Relay version
+      description: Output of ssh-client-relay --version
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client platform
+      options:
+        - Linux
+        - Windows
+        - Other or unsupported
+    validations:
+      required: true
+  - type: input
+    id: openssh
+    attributes:
+      label: OpenSSH version
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Redacted command and configuration
+      description: Replace real hosts, users, addresses, and paths with placeholders.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: layers
+    attributes:
+      label: Layer-by-layer checks
+      description: Describe results for client-to-relay, relay-to-target, and wrapper checks.
+    validations:
+      required: true

@@ -11,11 +11,32 @@ config_dir="${CONFIG_DIR:-$HOME/.config/ssh-client-relay}"
 remote_helper="${REMOTE_HELPER:-.local/bin/ssh-client-relay-helper}"
 remote_tmp="${remote_helper}.new.$$.${RANDOM}"
 
+valid_remote_path() {
+    local path="$1" part LC_ALL=C
+    local -a parts
+    [[ -n "$path" && "$path" != /* && "$path" != */ && "$path" != *//* ]] ||
+        return 1
+    [[ "$path" =~ ^[A-Za-z0-9._/-]+$ ]] || return 1
+    IFS=/ read -r -a parts <<<"$path"
+    for part in "${parts[@]}"; do
+        [[ "$part" != . && "$part" != .. ]] || return 1
+    done
+}
+
 if [[ -z "$relay_host" || -z "$target_alias" || -z "$target_host" ]]; then
     printf 'Usage: %s RELAY_HOST TARGET_ALIAS TARGET_HOST\n' "$0" >&2
     printf 'The same values may be set as environment variables.\n' >&2
     exit 64
 fi
+
+if ! valid_remote_path "$remote_helper"; then
+    printf 'REMOTE_HELPER must be a safe path relative to the relay home: %s\n' \
+        "$remote_helper" >&2
+    exit 64
+fi
+
+remote_dir="${remote_helper%/*}"
+[[ "$remote_dir" != "$remote_helper" ]] || remote_dir=.
 
 for command in ssh scp install; do
     command -v "$command" >/dev/null || {
@@ -40,7 +61,8 @@ trap 'rm -f "$config_tmp"' EXIT
 chmod 600 "$config_tmp"
 mv -f "$config_tmp" "$config_dir/config"
 
-ssh -x -T "$relay_host" 'mkdir -p ~/.local/bin && chmod 700 ~/.local/bin'
+ssh -x -T "$relay_host" \
+    "mkdir -p ~/$remote_dir && chmod 700 ~/$remote_dir"
 scp -q "$script_dir/libexec/ssh-client-relay-helper" "$relay_host:$remote_tmp"
 ssh -x -T "$relay_host" \
     "chmod 700 ~/$remote_tmp && mv -f ~/$remote_tmp ~/$remote_helper"

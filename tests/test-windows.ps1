@@ -24,7 +24,7 @@ SSH=$FakeSsh
     $env:TEST_STDIN = Join-Path $Work "stdin.bin"
 
     $Version = & $Relay --version
-    if ($Version -ne "ssh-client-relay 0.1.0") { throw "version mismatch: $Version" }
+    if ($Version -ne "ssh-client-relay 0.1.1") { throw "version mismatch: $Version" }
 
     $Direct = "payload" | & $Relay other "arg with space"
     if ($Direct -ne "fake-ssh-output") { throw "direct output mismatch" }
@@ -55,6 +55,22 @@ SSH=$FakeSsh
     "x" | & $Relay -D1081 compute true | Out-Null
     $Args = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($env:TEST_ARGS)).TrimEnd("`0").Split("`0")
     if ($Args -notcontains "1081:127.0.0.1:1081") { throw "attached -D was not bridged" }
+
+    @"
+RELAY_HOST=relay.example
+TARGET_ALIAS=compute
+TARGET_HOST=compute.example.org
+REMOTE_HELPER=~/../unsafe;command
+SSH=$FakeSsh
+"@ | Set-Content -LiteralPath $Config -Encoding ASCII
+    & $Relay compute true 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 70) { throw "unsafe configured helper path was accepted" }
+
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass `
+        -File (Join-Path $Repo "install-windows.ps1") `
+        relay.example compute compute.example.org `
+        -RemoteHelper "../unsafe;command" 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { throw "unsafe installer helper path was accepted" }
 
     Write-Host "Windows tests passed"
 }

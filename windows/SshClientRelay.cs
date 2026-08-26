@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 internal static class SshClientRelay
 {
     private const string Protocol = "SSH_CLIENT_RELAY_ARGS_V1";
-    private const string Version = "0.1.0";
+    private const string Version = "0.1.1";
 
     private sealed class Config
     {
@@ -102,7 +102,34 @@ internal static class SshClientRelay
                 "RELAY_HOST, TARGET_ALIAS, and TARGET_HOST are required in " + path);
         if (!File.Exists(config.Ssh))
             throw new FileNotFoundException("OpenSSH executable not found", config.Ssh);
+        if (!IsSafeRemoteHelper(config.RemoteHelper))
+            throw new InvalidDataException(
+                "REMOTE_HELPER must be a safe path under ~/: " + config.RemoteHelper);
         return config;
+    }
+
+    private static bool IsSafeRemoteHelper(string path)
+    {
+        if (String.IsNullOrEmpty(path) || !path.StartsWith("~/") ||
+            path.EndsWith("/") || path.Contains("//"))
+            return false;
+        string relative = path.Substring(2);
+        foreach (char character in relative)
+        {
+            bool asciiLetterOrDigit =
+                (character >= 'A' && character <= 'Z') ||
+                (character >= 'a' && character <= 'z') ||
+                (character >= '0' && character <= '9');
+            if (!(asciiLetterOrDigit || character == '.' || character == '_' ||
+                character == '-' || character == '/'))
+                return false;
+        }
+        foreach (string part in relative.Split('/'))
+        {
+            if (part.Length == 0 || part == "." || part == "..")
+                return false;
+        }
+        return true;
     }
 
     private static int RunDirect(string ssh, string[] args)

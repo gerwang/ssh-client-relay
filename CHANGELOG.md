@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.1.1 - 2026-08-26
+
+### Added
+
+- VS Code troubleshooting for cross-platform Settings Sync, relay hop
+  diagnosis, and remote server lock conflicts
+- Regression coverage for unsafe configured and installer helper paths
+
+### Changed
+
+- Custom remote helper directories are created from the configured path
+- VS Code examples use the current exec-server bootstrap
+
+### Security
+
+- Linux and Windows clients now reject helper paths that could be interpreted
+  as additional remote shell syntax
+- Linux and Windows installers reject absolute, traversal-style, or
+  shell-active helper paths before making a connection
+- GitHub Actions dependencies are pinned to an immutable release commit
+
 ## 0.1.0 - 2026-07-11
 
 ### Added

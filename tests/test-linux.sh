@@ -24,14 +24,14 @@ SSH=$repo/tests/fake-ssh.sh
 RELAY_HOST=relay.example
 TARGET_ALIAS=compute
 TARGET_HOST=compute.example.org
-REMOTE_HELPER=~/.local/bin/ssh-client-relay-helper
+REMOTE_HELPER=\~/.local/bin/ssh-client-relay-helper
 EOF
 
 export HOME="$work/home"
 export TEST_ARGS="$work/args"
 export TEST_STDIN="$work/stdin"
 
-assert_file 'ssh-client-relay 0.1.0' <("$repo/bin/ssh-client-relay" --version)
+assert_file 'ssh-client-relay 0.1.1' <("$repo/bin/ssh-client-relay" --version)
 
 output="$(printf payload | "$repo/bin/ssh-client-relay" other 'arg with space')"
 [[ "$output" == fake-ssh-output ]] || fail 'direct output was not relayed'
@@ -39,7 +39,7 @@ assert_file $'other\narg with space' "$TEST_ARGS"
 assert_file payload "$TEST_STDIN"
 
 printf payload | "$repo/bin/ssh-client-relay" -T -D 1080 compute 'printf hello' >/dev/null
-assert_file $'-x\n-T\n-L\n1080:127.0.0.1:1080\nrelay.example\n'"$HOME/.local/bin/ssh-client-relay-helper" "$TEST_ARGS"
+assert_file $'-x\n-T\n-L\n1080:127.0.0.1:1080\nrelay.example\n~/.local/bin/ssh-client-relay-helper' "$TEST_ARGS"
 perl -0 -e '
     use strict; use warnings;
     my $file = shift;
@@ -56,6 +56,24 @@ perl -0 -e '
 
 printf x | "$repo/bin/ssh-client-relay" -D1081 compute true >/dev/null
 grep -qx '1081:127.0.0.1:1081' "$TEST_ARGS" || fail 'attached -D was not bridged'
+
+cp "$HOME/.config/ssh-client-relay/config" "$work/config.safe"
+sed 's|^REMOTE_HELPER=.*|REMOTE_HELPER=~/../unsafe;command|' \
+    "$work/config.safe" >"$HOME/.config/ssh-client-relay/config"
+if "$repo/bin/ssh-client-relay" compute true >"$work/unsafe.out" 2>&1; then
+    fail 'unsafe configured helper path was accepted'
+fi
+grep -q 'REMOTE_HELPER must be a safe path' "$work/unsafe.out" ||
+    fail 'unsafe configured helper path did not produce a useful error'
+mv "$work/config.safe" "$HOME/.config/ssh-client-relay/config"
+
+if REMOTE_HELPER='../unsafe;command' \
+    "$repo/install.sh" relay.example compute compute.example.org \
+    >"$work/unsafe-install.out" 2>&1; then
+    fail 'unsafe installer helper path was accepted'
+fi
+grep -q 'REMOTE_HELPER must be a safe path' "$work/unsafe-install.out" ||
+    fail 'unsafe installer helper path did not produce a useful error'
 
 printf 'SSH_CLIENT_RELAY_ARGS_V1\0' >"$work/helper-input"
 printf '1\0-V\0' >>"$work/helper-input"
